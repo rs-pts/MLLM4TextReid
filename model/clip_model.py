@@ -334,7 +334,7 @@ class VisionTransformer(nn.Module):
         self.ln_pre = LayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads)
-
+        self.bn = nn.BatchNorm2d(width)
         self.ln_post = LayerNorm(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
@@ -343,6 +343,8 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, modal=None):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
+        # x = self.bn(x)
+        #apply a batch norm
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
@@ -420,6 +422,10 @@ class CLIP(nn.Module):
 
         self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
         # self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        #########################ADDED by Avinah#################################
+        #text class embedding
+        scale = self.transformer.width ** -0.5 # 1/sqrt(768)
+        self.text_class_embedding = nn.Parameter(scale * torch.randn(self.transformer.width))
 
         self.initialize_parameters()
 
@@ -455,7 +461,7 @@ class CLIP(nn.Module):
     def build_attention_mask(self):
         # lazily create causal attention mask, with full attention between the vision tokens
         # pytorch uses additive attention mask; fill with -inf
-        mask = torch.empty(self.context_length, self.context_length)
+        mask = torch.empty(self.context_length+1, self.context_length+1)
         mask.fill_(float("-inf"))
         mask.triu_(1)  # zero out the lower diagonal
         return mask
@@ -469,8 +475,10 @@ class CLIP(nn.Module):
 
     def encode_text(self, text, modal=None):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
-
         x = x + self.positional_embedding.type(self.dtype)
+        
+        x = torch.cat([self.text_class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]###Added by Avinash
+        
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x, modal)
         x = x.permute(1, 0, 2)  # LND -> NLD

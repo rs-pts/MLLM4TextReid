@@ -92,13 +92,8 @@ class IRRA(nn.Module):
 
         images = batch['images']
         caption_ids = batch['caption_ids']
-
-        if hasattr(torch.cuda.amp, "autocast"):
-            with torch.cuda.amp.autocast(): 
-                image_feats, text_feats = self.base_model(images, caption_ids)
-        
-        # with torch.autocast(dtype=torch.float16, device_type='cuda'):  # torch has no attribute autocast 
-        #     image_feats, text_feats = self.base_model(images, caption_ids)
+        with torch.autocast(dtype=torch.float16, device_type='cuda'):
+            image_feats, text_feats = self.base_model(images, caption_ids)
 
         i_feats = image_feats[:, 0, :].float()
         # i_feats = image_feats.float() # for CLIP ResNet visual model

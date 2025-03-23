@@ -12,6 +12,7 @@ class IRRA(nn.Module):
         self.args = args
         self.num_classes = num_classes
         self._set_task()
+
         self.base_model, base_cfg = build_CLIP_from_openai_pretrained(args.pretrain_choice, args.img_size, args.stride_size)
         self.embed_dim = base_cfg['embed_dim']
         self.logit_scale = torch.ones([]) * (1 / args.temperature) 
@@ -91,10 +92,8 @@ class IRRA(nn.Module):
         caption_ids = text
         ori_caption_ids = ori_text
         mix_ids = torch.cat([caption_ids,ori_caption_ids],dim=0)
-        # with torch.autocast(dtype=torch.float16, device_type='cuda'):
-        with torch.cuda.amp.autocast():
+        with torch.autocast(dtype=torch.float16, device_type='cuda'):
             image_feats, text_feats = self.base_model(images, mix_ids)
-        
         image_feats, fu_img_feats = image_feats.chunk(2,dim=0)
         text_feats, fu_txt_feats = text_feats.chunk(2,dim=0)
         return image_feats.float(), text_feats.float(), fu_img_feats.float(),fu_txt_feats.float()

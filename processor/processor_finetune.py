@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from prettytable import PrettyTable
 import torch.nn.functional as F
 
-def do_train(start_epoch, args, model, train_loader,evaluator2, optimizer,
+def do_train(start_epoch, args, model, train_loader, evaluator0,evaluator1,evaluator2, optimizer,
              scheduler, checkpointer, trainset):
 
     log_period = args.log_period
@@ -26,8 +26,8 @@ def do_train(start_epoch, args, model, train_loader,evaluator2, optimizer,
     logger = logging.getLogger("IRRA.train")
     if get_rank() == 0:
         logger.info("Validation before training - Epoch: {}".format(-1))
-        # top1 = evaluator0.eval(model.module.eval())
-        # top1 = evaluator1.eval(model.module.eval())
+        top1 = evaluator0.eval(model.module.eval())
+        top1 = evaluator1.eval(model.module.eval())
         top1 = evaluator2.eval(model.module.eval())
     logger.info('start training')
 
@@ -58,60 +58,25 @@ def do_train(start_epoch, args, model, train_loader,evaluator2, optimizer,
         for n_iter, batch in enumerate(train_loader):
             batch = {k: v.cuda() for k, v in batch.items()}
            
-            # ret = model(batch)
-            # done for RSPTData##############################################################
-            ret = model(batch['images'] , batch['mlm_ids'],batch['caption_ids'])
+            ret = model(batch)
+            ret = {key: values.mean() for key, values in ret.items()}
+            total_loss = sum([v for k, v in ret.items() if "loss" in k])
 
-            # Modified for RTSDATA
-            ret = {
-                    "image_feats": ret[0],
-                    "text_feats": ret[1],
-                    "fu_img_feats": ret[2],
-                    "fu_txt_feats": ret[3]
-            }
-            ############################################################################
-            ret = {key: values.mean() for key, values in ret.items()} # pahle se tha only this 
-            # total_loss = sum([v for k, v in ret.items() if "loss" in k], torch.tensor(0.0, device='cuda'))
-            ###################################added this cos of total_loss was in int so cos problem with backpropagation.######################################
-            total_loss = sum([v for k, v in ret.items()], torch.tensor(0.0, device='cuda'))
-            # Get batch size from images tensor
             batch_size = batch['images'].shape[0]
-
-            # Update meters (Ensure default values are tensors)
+            
             meters['loss'].update(total_loss.item(), batch_size)
-            meters['sdm_loss'].update(ret.get('sdm_loss', torch.tensor(0.0, device='cuda')).item(), batch_size)
-            meters['itc_loss'].update(ret.get('itc_loss', torch.tensor(0.0, device='cuda')).item(), batch_size)
-            meters['id_loss'].update(ret.get('id_loss', torch.tensor(0.0, device='cuda')).item(), batch_size)
-            meters['mlm_loss'].update(ret.get('mlm_loss', torch.tensor(0.0, device='cuda')).item(), batch_size)
+            meters['sdm_loss'].update(ret.get('sdm_loss', 0), batch_size)
+            meters['itc_loss'].update(ret.get('itc_loss', 0), batch_size)
+            meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
+            meters['mlm_loss'].update(ret.get('mlm_loss', 0), batch_size)
 
-            meters['img_acc'].update(ret.get('img_acc', torch.tensor(0.0, device='cuda')).item(), batch_size)
-            meters['txt_acc'].update(ret.get('txt_acc', torch.tensor(0.0, device='cuda')).item(), batch_size)
-            meters['mlm_acc'].update(ret.get('mlm_acc', torch.tensor(0.0, device='cuda')).item(), 1)
+            meters['img_acc'].update(ret.get('img_acc', 0), batch_size)
+            meters['txt_acc'].update(ret.get('txt_acc', 0), batch_size)
+            meters['mlm_acc'].update(ret.get('mlm_acc', 0), 1)
 
-            # Backpropagation
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-            ######################################backprop solved##################################
-
-
-            # total_loss = sum([v for k, v in ret.items() if "loss" in k])
-
-            # batch_size = batch['images'].shape[0]
-            
-            # meters['loss'].update(total_loss, batch_size)
-            # meters['sdm_loss'].update(ret.get('sdm_loss', 0), batch_size)
-            # meters['itc_loss'].update(ret.get('itc_loss', 0), batch_size)
-            # meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
-            # meters['mlm_loss'].update(ret.get('mlm_loss', 0), batch_size)
-
-            # meters['img_acc'].update(ret.get('img_acc', 0), batch_size)
-            # meters['txt_acc'].update(ret.get('txt_acc', 0), batch_size)
-            # meters['mlm_acc'].update(ret.get('mlm_acc', 0), 1)
-
-            # optimizer.zero_grad()
-            # total_loss.backward()
-            # optimizer.step()
             synchronize()
 
             if (n_iter + 1) % log_period == 0:
@@ -143,22 +108,22 @@ def do_train(start_epoch, args, model, train_loader,evaluator2, optimizer,
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
                 if args.distributed:
-                    # top1_0 = evaluator0.eval(model.module.eval())
-                    # top1_1 = evaluator1.eval(model.module.eval())
+                    top1_0 = evaluator0.eval(model.module.eval())
+                    top1_1 = evaluator1.eval(model.module.eval())
                     top1_2 = evaluator2.eval(model.module.eval())
                 else:
-                    # top1_0 = evaluator0.eval(model.module.eval())
-                    # top1_1 = evaluator1.eval(model.module.eval())
+                    top1_0 = evaluator0.eval(model.module.eval())
+                    top1_1 = evaluator1.eval(model.module.eval())
                     top1_2 = evaluator2.eval(model.module.eval())
                 torch.cuda.empty_cache()
-                # if best_top1_0 < top1_0:
-                #     best_top1_0 = top1_0
-                #     arguments["epoch"] = epoch
-                #     checkpointer.save("best0", **arguments)
-                # if best_top1_1 < top1_1:
-                #     best_top1_1 = top1_1
-                #     arguments["epoch"] = epoch
-                #     checkpointer.save("best1", **arguments)
+                if best_top1_0 < top1_0:
+                    best_top1_0 = top1_0
+                    arguments["epoch"] = epoch
+                    checkpointer.save("best0", **arguments)
+                if best_top1_1 < top1_1:
+                    best_top1_1 = top1_1
+                    arguments["epoch"] = epoch
+                    checkpointer.save("best1", **arguments)
                 if best_top1_2 < top1_2:
                     best_top1_2 = top1_2
                     arguments["epoch"] = epoch
