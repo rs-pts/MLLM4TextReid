@@ -70,16 +70,16 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             i_feats, text_feats,fu_i_feats,fu_t_feats = model(image, text, ori_text)
             #(torch.Size([128, 193, 512]), torch.Size([128, 77, 512]), torch.Size([128, 193, 512]), torch.Size([128, 77, 512]))
             caption_ids = text
-            # t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
-            t_feats = text_feats[:,0,:]
+            t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
+            # t_feats = text_feats[:,0,:]
             logit_scale = torch.ones([]) * (1 / args.temperature) 
             
             loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale)
             
             total_loss = loss_sdm
             with torch.no_grad():
-                # similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(fu_t_feats,dim=-1), F.normalize(fu_i_feats[:,1:,:],dim=-1)])
-                similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(text_feats,dim=-1), F.normalize(i_feats[:,1:,:],dim=-1)])
+                similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(fu_t_feats,dim=-1), F.normalize(fu_i_feats[:,1:,:],dim=-1)])
+                # similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(text_feats,dim=-1), F.normalize(i_feats[:,1:,:],dim=-1)])
                 similarity_matrix = similarity_matrix.max(-1)[0]
                 for idx, sim in zip(batch['image_ids'].data, similarity_matrix):
                     trainset[idx][-1] = sim.data.cpu().numpy()
