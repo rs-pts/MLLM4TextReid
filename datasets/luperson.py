@@ -16,9 +16,10 @@ class LuPerson_PEDES(BaseDataset):
     dataset_dir ='data'
     def __init__(self, root='', verbose=True):
         super(LuPerson_PEDES, self).__init__()
-        self.dataset_dir = '/home/dslab/Documents/s24015/MLLM4Text-ReID/data/luperson'
-        self.image_dir = op.join(self.dataset_dir, 'imgss')
-        self.caption_dir = self.dataset_dir
+        self.dataset_dir = '/home/dslab/Documents/s24015/MLLM4Text-ReID/data'
+        # self.image_dir = op.join(self.dataset_dir, 'luperson/imgs')
+        self.image_dir = self.dataset_dir 
+        self.caption_dir = self.dataset_dir +"/luperson"
         self.train_img_paths = []
         self.train_cap_paths = []
 
@@ -116,8 +117,9 @@ class LuPerson_PEDES(BaseDataset):
         with open('/home/dslab/Documents/s24015/MLLM4Text-ReID/data/luperson/captions.json', 'r') as json_file:
             data = json.load(json_file)
             for k,v in data.items():
-                img_name = k.split('/')[-1]
-                safe_dict[img_name].append(v)
+                # img_name = k.split('/')[-1]
+                for V in v:
+                    safe_dict[k].append(V)
         
         # with open('./caption/Ts-qwen.json', 'r') as json_file:
         #     data = json.load(json_file)
@@ -139,7 +141,14 @@ class LuPerson_PEDES(BaseDataset):
             img_path = img_paths[i]
             
             path2cap = img_path.split('/')[-1]
-            caption = cap_dict[path2cap]
+            # caption = cap_dict[path2cap]
+            img_pth = img_path.replace("/home/dslab/Documents/s24015/MLLM4Text-ReID/", "")
+            caption = safe_dict[img_pth]
+            if len(caption)==0:   
+                continue
+                
+            
+            # caption = safe_dict[img_pth]
 
             # if len(caption) != 4:
             #     continue
@@ -156,7 +165,8 @@ class LuPerson_PEDES(BaseDataset):
                 #     print(cap)
                 if 'description]' in cap or '<' in cap: 
                     try:
-                        cap = random.choice(safe_dict[path2cap])[0]
+                        # cap = random.choice(safe_dict[path2cap])
+                        cap = random.choice(safe_dict[img_pth])
                     except:
                         pass
                 

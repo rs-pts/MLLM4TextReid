@@ -235,8 +235,6 @@ class FilterDataset(Dataset):
     def __getitem__(self, index):
         pid, image_id, img_path, caption, sim = self.dataset[index]
         img = read_image(img_path)
-        if type(caption) == list:
-            caption = caption[0]
         if self.transform is not None:
             img = self.transform(img)
             
