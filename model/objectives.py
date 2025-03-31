@@ -161,7 +161,7 @@ def compute_itc(image_features, text_features, logit_scale):
     return loss
 
 
-def compute_id_original(image_logits, text_logits, labels):
+def compute_id(image_logits, text_logits, labels):
     """
     Instance loss proposed at http://arxiv.org/abs/1711.05535
     """
@@ -171,7 +171,7 @@ def compute_id_original(image_logits, text_logits, labels):
     
     return loss / 2
 
-def compute_id(image_logits, text_logits, labels, margin=0.3):
+def compute_id_r(image_logits, text_logits, labels, margin=0.3):
     batch_size = image_logits.size(0)
     
     # Create one-hot labels with label smoothing
