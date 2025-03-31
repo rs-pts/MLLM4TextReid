@@ -334,7 +334,7 @@ class VisionTransformer(nn.Module):
         self.ln_pre = LayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads)
-        self.bn = nn.BatchNorm2d(width)
+
         self.ln_post = LayerNorm(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
@@ -343,8 +343,6 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, modal=None):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
-        # x = self.bn(x)
-        #apply a batch norm
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
@@ -422,20 +420,12 @@ class CLIP(nn.Module):
 
         self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
         # self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
-        #########################ADDED by Avinah#################################
-        #text class embedding
-        scale = self.transformer.width ** -0.5 # 1/sqrt(768)
-        self.text_class_embedding = nn.Parameter(scale * torch.randn(1 , self.transformer.width))
-        #Rohit
-        self.cls_token = nn.Parameter(torch.randn(1, 1, transformer_width))
-        
+
         self.initialize_parameters()
 
     def initialize_parameters(self):
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.positional_embedding, std=0.01)
-        #Rohit
-        nn.init.normal_(self.cls_token, std=0.02)
 
         if isinstance(self.visual, ModifiedResNet):
             if self.visual.attnpool is not None:
@@ -479,18 +469,8 @@ class CLIP(nn.Module):
 
     def encode_text(self, text, modal=None):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
-        
-        x = x[:, :76, :]  # [B, 76, D]
-        cls_tokens = self.cls_token.expand(x.shape[0], -1, -1).type(self.dtype) 
-        x = torch.cat((cls_tokens, x), dim=1)
-        
-        #added by avinash
-        # cls_token = self.text_class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device)
-        x =   x + self.positional_embedding.type(self.dtype)
-        
-        # x = torch.cat([self.text_class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]###Added by Avinash
-        
-        # x = x + self.positional_embedding.type(self.dtype)        
+
+        x = x + self.positional_embedding.type(self.dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x, modal)
         x = x.permute(1, 0, 2)  # LND -> NLD
@@ -698,5 +678,3 @@ def build_CLIP_from_openai_pretrained(name: str, image_size: Union[int, Tuple[in
     # resize modified pos embedding
     model.load_param(state_dict)
     return model, model_cfg
-
-

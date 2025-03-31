@@ -136,6 +136,7 @@ def compute_mlm(scores, labels):
     return ce(scores, labels)
 
 
+
 def compute_itc(image_features, text_features, logit_scale):
     """
     image-text contrastive (ITC) loss, InfoNCE
@@ -160,7 +161,7 @@ def compute_itc(image_features, text_features, logit_scale):
     return loss
 
 
-def compute_id(image_logits, text_logits, labels):
+def compute_id_original(image_logits, text_logits, labels):
     """
     Instance loss proposed at http://arxiv.org/abs/1711.05535
     """
@@ -169,6 +170,44 @@ def compute_id(image_logits, text_logits, labels):
     loss = criterion(image_logits, labels) + criterion(text_logits, labels)
     
     return loss / 2
+
+def compute_id(image_logits, text_logits, labels, margin=0.3):
+    batch_size = image_logits.size(0)
+    
+    # Create one-hot labels with label smoothing
+    num_classes = image_logits.size(1)
+    label_smooth = 0.1
+    one_hot = torch.zeros_like(image_logits).scatter(1, labels.unsqueeze(1), 1)
+    smooth_labels = (1.0 - label_smooth) * one_hot + label_smooth / num_classes
+    
+    # Classification loss with label smoothing
+    criterion = nn.CrossEntropyLoss(reduction="mean")
+    cls_loss = criterion(image_logits, labels) + criterion(text_logits, labels)
+    
+    # Identity matching loss
+    pos_mask = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+    
+    # Compute similarities between modalities
+    image_norm = F.normalize(image_logits, dim=1)
+    text_norm = F.normalize(text_logits, dim=1)
+    sim_matrix = torch.matmul(image_norm, text_norm.t())
+    
+    # Hard negative mining
+    pos_sim = sim_matrix * pos_mask
+    neg_sim = sim_matrix * (1 - pos_mask)
+    
+    # Select hardest negatives (most similar negative pairs)
+    hard_neg = neg_sim.max(dim=1)[0]
+    
+    # Triplet loss with hardest negatives
+    triplet_loss = torch.mean(F.relu(
+        margin - pos_sim.mean(dim=1) + hard_neg
+    ))
+    
+    # Combine losses
+    total_loss = (cls_loss + triplet_loss) / 2
+    
+    return total_loss
 
 
 def compute_cmpm(image_embeddings, text_embeddings, labels, epsilon=1e-8):

@@ -71,10 +71,11 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             #(torch.Size([128, 193, 512]), torch.Size([128, 77, 512]), torch.Size([128, 193, 512]), torch.Size([128, 77, 512]))
             caption_ids = text
             t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
+            # # t_feats = text_feats.mean(dim=1)
             # t_feats = text_feats[:,0,:]
             logit_scale = torch.ones([]) * (1 / args.temperature) 
             
-            loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale)
+            loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale) # batch['pids'](image_ids)
             
             total_loss = loss_sdm
             with torch.no_grad():
@@ -146,10 +147,13 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
         logger.info(f"best R1: {best_top1_0}, {best_top1_1}, {best_top1_2} at epoch {arguments['epoch']}")
 
 
-def do_inference(model, test_img_loader, test_txt_loader):
+def do_inference(model, test_img_loader, test_txt_loader, tokenizer):
 
     logger = logging.getLogger("IRRA.test")
     logger.info("Enter inferencing")
 
     evaluator = Evaluator(test_img_loader, test_txt_loader)
     top1 = evaluator.eval(model.eval())
+    # image_path = '/home/dslab/Documents/s24015/MLLM4Text-ReID/data/ICFG-PEDES/imgs/test/0000/0000_019_05_0303morning_0029_1.jpg'
+    # caption = evaluator.generate_caption(model ,image_path, tokenizer)
+    # print(caption)

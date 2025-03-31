@@ -1,5 +1,5 @@
 from model import objectives
-from .clip_model_ch import ResidualAttentionBlock, ResidualCrossAttentionBlock, Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
+from .clip_model import ResidualAttentionBlock, ResidualCrossAttentionBlock, Transformer, QuickGELU, LayerNorm, build_CLIP_from_openai_pretrained, convert_weights
 import numpy as np
 import torch
 import torch.nn as nn
@@ -73,7 +73,7 @@ class IRRA(nn.Module):
                 self.ln_pre_i(v),
                 need_weights=False)[0]
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(x, "text")
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x)
@@ -113,7 +113,7 @@ class IRRA(nn.Module):
         if 'id' in self.current_task:
             image_logits = self.classifier(i_feats.half()).float()
             text_logits = self.classifier(t_feats.half()).float()
-            ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, batch['pids'])*self.args.id_loss_weight})
+            ret.update({'id_loss':objectives.compute_id(image_logits, text_logits, batch['pids'])*self.args.id_loss_weight}) # batch['pids'](image_ids)
 
             image_pred = torch.argmax(image_logits, dim=1)
             text_pred = torch.argmax(text_logits, dim=1)

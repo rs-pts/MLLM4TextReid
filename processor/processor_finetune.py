@@ -26,9 +26,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator0,evaluator1,evalu
     logger = logging.getLogger("IRRA.train")
     if get_rank() == 0:
         logger.info("Validation before training - Epoch: {}".format(-1))
-        top1 = evaluator0.eval(model.module.eval())
-        top1 = evaluator1.eval(model.module.eval())
-        top1 = evaluator2.eval(model.module.eval())
+        # top1 = evaluator0.eval(model.module.eval())
+        # top1 = evaluator1.eval(model.module.eval())
+        # top1 = evaluator2.eval(model.module.eval())
     logger.info('start training')
 
     meters = {
