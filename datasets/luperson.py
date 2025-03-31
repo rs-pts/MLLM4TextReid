@@ -172,7 +172,7 @@ class LuPerson_PEDES(BaseDataset):
                 
                 part2sim = 77 * [1- 0.15]
                 part2sim = np.array(part2sim)
-                dataset.append([pid,idx_count,img_path, cap, part2sim])
+                dataset.append([pid,idx_count,img_path, cap, part2sim])# pid (imageid) idx_count (captionid)(caption_id)
                 # dataset.append([pid,imgid,img_path, cap, part2sim])
                 num_caption += 1
                 idx_count += 1

@@ -193,7 +193,7 @@ def build_zero_shot_loader(args, finetune=False):
     
     dataset0 = __factory['RSTPReid'](root=args.root_dir)
     dataset1 = __factory['ICFG-PEDES'](root=args.root_dir)
-    dataset2 = __factory['ICFG-PEDES'](root=args.root_dir)
+    dataset2 = __factory['RSTPReid'](root=args.root_dir)
 
     train_transforms = build_transforms(img_size=args.img_size,
                                             aug=args.img_aug,

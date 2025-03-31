@@ -1,10 +1,14 @@
+import re
 from prettytable import PrettyTable
 import torch
 import numpy as np
 import os
 import torch.nn.functional as F
 import logging
+from utils.iotools import read_image
+from torchvision import transforms
 
+from utils.simple_tokenizer import SimpleTokenizer
 
 def rank(similarity, q_pids, g_pids, max_rank=10, get_mAP=True):
     if get_mAP:
@@ -44,6 +48,7 @@ class Evaluator():
     def __init__(self, img_loader, txt_loader):
         self.img_loader = img_loader # gallery
         self.txt_loader = txt_loader # query
+        self.tokenizer = SimpleTokenizer()
         self.logger = logging.getLogger("IRRA.eval")
 
     def _compute_embedding(self, model):
@@ -51,8 +56,36 @@ class Evaluator():
         device = next(model.parameters()).device
 
         qids, gids, qfeats, gfeats = [], [], [], []
+        captions_dict = {}
         # text
         for pid, caption in self.txt_loader:
+            
+            # for img_pid, img_pth in zip(self.img_loader.dataset.img_pids, self.img_loader.dataset.img_paths):
+            #     if img_pid == pid.item() and img_pid not in captions_dict:
+            #         captions_dict[img_pth] = []
+            #         break
+
+            # caption = caption.to(device)
+            # tokens = caption.cpu().tolist() if caption.is_cuda else caption.tolist()
+            # tokens = [token for token in tokens if token != 0]  # Remove padding tokens (0)
+
+            # decoded_captions = []
+            # for token_list in tokens:  # Handle cases where tokens might be nested lists
+            #     if isinstance(token_list, list):
+            #         decoded_caption = self.tokenizer.decode(token_list)
+            #     else:
+            #         decoded_caption = self.tokenizer.decode([token_list])
+            #     clean_txt = re.sub(r"<\|endoftext\|>|<\|startoftext\|>", "", decoded_caption)
+            #     decoded_captions.append(clean_txt)
+
+            # # Add decoded captions to captions_dict
+            # for clean_txt in decoded_captions:
+            #     if pid.item() not in captions_dict:
+            #         captions_dict[pid.item()] = []
+            #     captions_dict[pid.item()].append(clean_txt)
+
+                
+                
             caption = caption.to(device)
             with torch.no_grad():
                 text_feat = model.encode_text(caption)
@@ -100,3 +133,17 @@ class Evaluator():
         self.logger.info('\n' + str(table))
         
         return t2i_cmc[0]
+    
+    def generate_caption(self, model, image_path, tokenizer):
+        """
+        Generate a caption for a single image.
+        Args:
+            model: The trained model.
+            image_path: Path to the image.
+            tokenizer: The tokenizer used for decoding.
+        Returns:
+            Decoded caption as a string.
+        """
+        
+        
+        

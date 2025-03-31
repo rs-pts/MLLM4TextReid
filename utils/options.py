@@ -15,7 +15,7 @@ def get_args():
 
     parser.add_argument("--finetune", type=str, default="")
     parser.add_argument("--pretrain", type=str, default="LuPerson_PEDES")
-    parser.add_argument("--nam", default=True, action='store_true')
+    parser.add_argument("--nam", default=False, action='store_true')
 
     ######################## model general settings ########################
     parser.add_argument("--pretrain_choice", default='ViT-B/16') # whether use pretrained model
