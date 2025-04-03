@@ -23,7 +23,7 @@ class LuPerson_PEDES(BaseDataset):
         # self.image_dir = op.join(self.dataset_dir, 'imgs/')
         
         
-        self.dataset_dir = "/home/dslab/Documents/s24015/MLLM4Text-ReID/data"
+        self.dataset_dir = "/storage/avinash/MLLM4TextReid/data"
         self.image_dir =self.dataset_dir
         self.caption_dir = self.dataset_dir+'/luperson'
         self.train_img_paths = []
@@ -124,7 +124,7 @@ class LuPerson_PEDES(BaseDataset):
     
     def _get_dataset(self, img_paths, cap_dict):
         safe_dict = collections.defaultdict(list)
-        with open('/home/dslab/Documents/s24015/MLLM4Text-ReID/data/luperson/captions.json', 'r') as json_file:
+        with open('/storage/avinash/MLLM4TextReid/data/luperson/captions.json', 'r') as json_file:
             data = json.load(json_file)
             for k,v in data.items():
                 img_name = k.split('/')[-1]
