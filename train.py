@@ -36,7 +36,9 @@ if __name__ == '__main__':
     args = get_args()
     set_seed(1+get_rank())
     name = args.name
-
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5" 
+    
+    
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
 
@@ -45,7 +47,7 @@ if __name__ == '__main__':
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
         synchronize()
     
-    device = "cuda:5"
+    device = "cuda"
     cur_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     args.output_dir = op.join(args.output_dir, args.dataset_name, f'{cur_time}_{name}')
     logger = setup_logger('IRRA', save_dir=args.output_dir, if_train=args.training, distributed_rank=get_rank())
