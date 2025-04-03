@@ -72,12 +72,23 @@ templet = {
 def generate_rewrites_deepseek(text, num_variants=random.randint(4, 12)):
 #     prompt = f"""Rewrite the following sentence in different ways while preserving its meaning:
 # Original: {text}
+    prompt = f"""Rewrite the given caption: '{text}' while increasing its lexical diversity and structuring it effectively.  
 
-    prompt = f"""Rewrite the following sentence {text} in diffrenct way while taking the refrence form provided {templet} is in json format and use reid attributes such as 
-    Physical_Appearance, Clothing_Attributes, Accessories, etc and also ensures that the rewritten upto 77 tokens.: 
+**Guidelines:**  
+1. Rephrase the sentence while maintaining the original meaning.  
+2. Ensure the new caption is **concise (max 77 tokens)** and **rich in descriptive vocabulary**.  
+3. Incorporate person attributes such as **physical appearance, clothing, and accessories**.  
+4. If the original caption **starts with 'A,' modify its structure** while keeping the meaning intact.  
+5. **Output only the rephrased caption—do NOT include instructions or explanations.**  
+"""  
 
-Rewrites:
-1."""
+#     prompt = f"""Rewrite the following sentence {text} in diffrenct way while taking the refrence form provided {templet} is in json format and use reid attributes such as 
+#     Physical_Appearance, Clothing_Attributes, Accessories, etc and also ensures that the rewritten upto 77 tokens should be unique token and last make atleast 2 complete caption.: 
+
+# Rewrites:
+# 1."""
+  
+
     
     inputs = tokenizer(prompt, return_tensors="pt").to(device)  # ✅ Move tensors to GPU
 
@@ -106,15 +117,17 @@ Rewrites:
     return rewrites
 
 # Read captions from captions.json
-with open('/home/dslab/Documents/s24015/MLLM4Text-ReID/data/luperson/captions.json', 'r') as f:
+# /home/dslab/Documents/s24015/MLLM4Text-ReID/data/RSTPReid/data_captions.json
+# /home/dslab/Documents/s24015/MLLM4Text-ReID/data/ICFG-PEDES/ICFG-PEDES.json
+with open('/home/dslab/Documents/s24015/MLLM4Text-ReID/ICFG.json', 'r') as f:
     captions_data = json.load(f)
     
 try:
-    with open('./rewritten_captions_r.json', 'r') as f:
+    with open('./ICFG_rewritten_captions_r.json', 'r') as f:
         rewritten_captions = json.load(f)
 except FileNotFoundError:
     print("No existing rewritten_captions.json found. Creating a new one.")
-
+    rewritten_captions = {}
 # Process each caption and generate rewrites
 for image_path, captions in captions_data.items():
     if image_path in rewritten_captions:
@@ -125,13 +138,13 @@ for image_path, captions in captions_data.items():
         rewrites = generate_rewrites_deepseek(text =captions[0],num_variants= random.randint(3, 13))
         
         rewritten_captions[image_path].extend(rewrites)
-        with open('rewritten_captions_r.json', 'w') as f:
+        with open('./ICGF_rewritten_captions_r.json', 'w') as f:
             json.dump(rewritten_captions, f, indent=4)
     except Exception as e:
         print(f"Error generating rewrites for caption '{captions}': {str(e)}")
 
 # Save rewritten captions to a new JSON file
-with open('rewritten_captions.json', 'w') as f:
-    json.dump(rewritten_captions, f, indent=4)
+# with open('ICFG_rewritten_captions.json', 'w') as f:
+#     json.dump(rewritten_captions, f, indent=4)
 
 print("Rewritten captions saved to rewritten_captions.json")
