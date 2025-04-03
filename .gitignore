@@ -1,3 +1,4 @@
 data/
 logs/
 dataset/__pycache__/
+model/__pycache__/
