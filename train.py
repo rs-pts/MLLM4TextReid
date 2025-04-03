@@ -73,7 +73,6 @@ if __name__ == '__main__':
     # model = model.float()
     model.cuda()
     model = nn.DataParallel(model)
-
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(
             model,
