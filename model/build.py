@@ -71,7 +71,7 @@ class IRRA(nn.Module):
                 self.ln_pre_i(v),
                 need_weights=False)[0]
         x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.cross_modal_transformer(x)
+        x = self.cross_modal_transformer(x,"text")
         x = x.permute(1, 0, 2)  # LND -> NLD
 
         x = self.ln_post(x)
@@ -87,7 +87,7 @@ class IRRA(nn.Module):
         x = self.base_model.encode_text(text)
         return x[torch.arange(x.shape[0]), text.argmax(dim=-1)].float()
 
-    def forward(self, image, text, ori_text):
+    def forward(self, image, text, ori_text, batch):
         images = image
         caption_ids = text
         ori_caption_ids = ori_text
@@ -96,9 +96,10 @@ class IRRA(nn.Module):
             image_feats, text_feats = self.base_model(images, mix_ids)
         image_feats, fu_img_feats = image_feats.chunk(2,dim=0)
         text_feats, fu_txt_feats = text_feats.chunk(2,dim=0)
-        return image_feats.float(), text_feats.float(), fu_img_feats.float(),fu_txt_feats.float()
+        # return image_feats.float(), text_feats.float(), fu_img_feats.float(),fu_txt_feats.float()
         
         ret = {}
+        logit_scale = self.logit_scale
         i_feats = image_feats[:, 0, :].float()
         t_feats = text_feats[torch.arange(text_feats.shape[0]), caption_ids.argmax(dim=-1)].float()
         
@@ -136,12 +137,29 @@ class IRRA(nn.Module):
 
             scores = x.float().reshape(-1, self.args.vocab_size)
             mlm_labels = batch['mlm_labels'].reshape(-1)
-            ret.update({'mlm_loss': objectives.compute_mlm(scores, mlm_labels)*self.args.mlm_loss_weight})
+            
+            # Get indices of non-zero labels
+            mlm_label_idx = torch.nonzero(mlm_labels, as_tuple=True)[0]  # Flatten to 1D indices
 
-            pred = scores.max(1)[1]
-            mlm_label_idx = torch.nonzero(mlm_labels)
-            acc = (pred[mlm_label_idx] == mlm_labels[mlm_label_idx]).float().mean()
+            # Filter scores and labels to only include non-zero positions
+            filtered_scores = scores[mlm_label_idx]  # Shape: [314, 49408] (only non-zero labels)
+            filtered_labels = mlm_labels[mlm_label_idx]  # Shape: [314] (only non-zero labels)
+
+            # Compute MLM loss using filtered scores and labels
+            ret.update({'mlm_loss': objectives.compute_mlm(filtered_scores, filtered_labels) * self.args.mlm_loss_weight})
+
+            # Compute predictions
+            pred = filtered_scores.max(1)[1]  # Shape: [314]
+
+            # Compute accuracy
+            acc = (pred == filtered_labels).float().mean()
             ret.update({'mlm_acc': acc})
+            # ret.update({'mlm_loss': objectives.compute_mlm(scores, mlm_labels)*self.args.mlm_loss_weight})
+
+            # pred = scores.max(1)[1]
+            # mlm_label_idx = torch.nonzero(mlm_labels)
+            # acc = (pred[mlm_label_idx] == mlm_labels[mlm_label_idx]).float().mean()
+            # ret.update({'mlm_acc': acc})
 
         if 'att_mlm' in self.current_task:
             for att_type in ['shoes','hairstyle','genders','top','trousers','belongings']:
@@ -162,7 +180,7 @@ class IRRA(nn.Module):
                 acc = (pred[mlm_label_idx] == mlm_labels[mlm_label_idx]).float().mean()
                 ret.update({att_type+'_acc': acc})
 
-        return ret
+        return image_feats.float(), text_feats.float(), fu_img_feats.float(),fu_txt_feats.float(), ret
 
 
 def build_model(args, num_classes=11003):
