@@ -75,9 +75,12 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             # t_feats = text_feats[:,0,:]
             logit_scale = torch.ones([]) * (1 / args.temperature) 
             
-            loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale)
+            loss_sdm = objectives.compute_sdm(i_feats[:,0,:], t_feats, batch['pids'].cuda(), logit_scale)            
+            # total_loss = loss_sdm + ret['id_loss']+ ret['mlm_loss']
             
-            total_loss = loss_sdm + ret['id_loss']+ ret['mlm_loss']
+            total_nxt_loss = objectives.combined_contrastive_loss(i_feats[:,0,:], t_feats, 1, 1)
+            
+            total_loss = total_nxt_loss + ret['mlm_loss'] + loss_sdm
             with torch.no_grad():
                 similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(fu_t_feats,dim=-1), F.normalize(fu_i_feats[:,1:,:],dim=-1)])
                 # similarity_matrix = torch.einsum('nld,nkd->nlk', [F.normalize(text_feats,dim=-1), F.normalize(i_feats[:,1:,:],dim=-1)])
@@ -88,7 +91,7 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
             batch_size = batch['images'].shape[0]
             meters['loss'].update(total_loss.item(), batch_size)
             meters['sdm_loss'].update(loss_sdm, batch_size)
-            meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
+            # meters['id_loss'].update(ret.get('id_loss', 0), batch_size)
             meters['mlm_loss'].update(ret.get('mlm_loss', 0), batch_size)
 
             optimizer.zero_grad()
@@ -102,7 +105,7 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
                 for k, v in meters.items():
                     if v.avg > 0:
                         info_str += f", {k}: {v.avg:.4f}"
-                info_str += f", Base Lr: {scheduler.get_lr()[0]:.2e}"
+                info_str += f",nt_xent: {total_nxt_loss:3e} Base Lr: {scheduler.get_lr()[0]:.2e}"
                 logger.info(info_str)
         
         tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch)

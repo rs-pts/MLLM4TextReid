@@ -209,6 +209,49 @@ def compute_id(image_logits, text_logits, labels, margin=0.5):
     return total_loss
 
 
+def nt_xent_loss(z_i, z_j, temperature=0.5):
+    """NT-Xent loss for contrastive learning."""
+    batch_size = z_i.shape[0]
+
+    # Normalize embeddings
+    z_i = F.normalize(z_i, p=2, dim=1)
+    z_j = F.normalize(z_j, p=2, dim=1)
+
+    # Compute similarity
+    similarity_matrix = torch.matmul(z_i, z_j.T)  # (batch_size, batch_size)
+    labels = torch.arange(batch_size).to(z_i.device)
+
+    # Compute NT-Xent loss
+    loss = F.cross_entropy(similarity_matrix / temperature, labels)
+    return loss
+
+def info_nce_loss(query, keys, temperature=0.07):
+    """InfoNCE loss for contrastive learning."""
+    query = F.normalize(query, dim=-1)
+    keys = F.normalize(keys, dim=-1)
+
+    logits = torch.matmul(query, keys.T) / temperature
+    labels = torch.arange(query.size(0)).to(query.device)
+
+    loss = F.cross_entropy(logits, labels)
+    return loss
+
+
+def combined_contrastive_loss(image_feats, text_feats, weight_nt_xent=0.5, weight_info_nce=0.5):
+    """Merges NT-Xent and InfoNCE loss for contrastive training."""
+    
+    # Normalize features
+    image_feats = F.normalize(image_feats, p=2, dim=1)
+    text_feats = F.normalize(text_feats, p=2, dim=1)
+
+    # Compute individual losses
+    loss_nt_xent = nt_xent_loss(image_feats, text_feats, temperature=0.5)
+    loss_info_nce = info_nce_loss(image_feats, text_feats, temperature=0.07)
+
+    # Merge losses with weights
+    total_loss = weight_nt_xent * loss_nt_xent #+ weight_info_nce * loss_info_nce
+    return total_loss
+
 def compute_cmpm(image_embeddings, text_embeddings, labels, epsilon=1e-8):
     """
     Cross-Modal Projection Matching Loss(CMPM)

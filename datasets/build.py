@@ -252,7 +252,7 @@ def build_zero_shot_loader(args, finetune=False):
     train_set = ImageTextMLMDataset(syn_dataset.train,
                             train_transforms,
                             text_length=args.text_length)
-    num_classes = len(syn_dataset.train)
+    num_classes = len(syn_dataset.train_id_container)
 
     logger.info('using random sampler')
     train_loader = DataLoader(train_set,
